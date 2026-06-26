@@ -67,31 +67,43 @@ if ! curl -fsSL "$ASSET_URL" | tar xz --strip-components=1; then
     exit 1
 fi
 
-# Crear wrapper script
-cat > "$BIN_DIR/axet" << 'WRAPPER'
+# Detectar Windows (Git Bash / MSYS2)
+IS_WINDOWS=false
+if [[ "$(uname -s)" == *"MINGW"* ]] || [[ "$(uname -s)" == *"MSYS"* ]] || [[ "$OSTYPE" == "msys" ]]; then
+    IS_WINDOWS=true
+fi
+
+if $IS_WINDOWS; then
+    # En Windows, npm install -g crea el wrapper .cmd automaticamente
+    echo "Detectado Windows - instalando via npm global..."
+    cd "$INSTALL_DIR" && npm install -g . --quiet
+else
+    # Crear wrapper script (Linux / Mac)
+    cat > "$BIN_DIR/axet" << 'WRAPPER'
 #!/bin/bash
 export AXET_HOME="$HOME/.axet"
 cd "$AXET_HOME" && node index.production.js "$@"
 WRAPPER
 
-chmod +x "$BIN_DIR/axet"
+    chmod +x "$BIN_DIR/axet"
 
-# Agregar a PATH si no está
-if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
-    SHELL_CONFIG=""
-    if [ -f "$HOME/.bashrc" ]; then
-        SHELL_CONFIG="$HOME/.bashrc"
-    elif [ -f "$HOME/.zshrc" ]; then
-        SHELL_CONFIG="$HOME/.zshrc"
-    fi
-    
-    if [ -n "$SHELL_CONFIG" ]; then
-        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$SHELL_CONFIG"
-        echo "AVISO: Agregado $BIN_DIR al PATH en $SHELL_CONFIG"
-        echo "   Ejecuta: source $SHELL_CONFIG"
-    else
-        echo "AVISO: Agrega esto a tu shell config:"
-        echo "   export PATH=\"\$HOME/.local/bin:\$PATH\""
+    # Agregar a PATH si no está
+    if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
+        SHELL_CONFIG=""
+        if [ -f "$HOME/.bashrc" ]; then
+            SHELL_CONFIG="$HOME/.bashrc"
+        elif [ -f "$HOME/.zshrc" ]; then
+            SHELL_CONFIG="$HOME/.zshrc"
+        fi
+
+        if [ -n "$SHELL_CONFIG" ]; then
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$SHELL_CONFIG"
+            echo "AVISO: Agregado $BIN_DIR al PATH en $SHELL_CONFIG"
+            echo "   Ejecuta: source $SHELL_CONFIG"
+        else
+            echo "AVISO: Agrega esto a tu shell config:"
+            echo "   export PATH=\"\$HOME/.local/bin:\$PATH\""
+        fi
     fi
 fi
 
